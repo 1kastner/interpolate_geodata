@@ -24,7 +24,7 @@ from affine import Affine
 
 
 def read_shapefile(path, attribute_name):
-    "read coordinates and attributes from shapefile"
+    """read coordinates and attributes from shapefile"""
     sf = shapefile.Reader(path)
     westsoutheastnorth = sf.bbox
     field_names = [e[0] for e in sf.fields[1:]]
@@ -35,20 +35,23 @@ def read_shapefile(path, attribute_name):
     return westsoutheastnorth, shape_records
 
 
-def draw_marker(raster_map, row, col, val, resolution):
-    "draw marker on raster_map"
+def draw_marker(raster_map, row, col, val, resolution, border_intensity):
+    """draw marker on raster_map"""
+    row_area, col_area = draw.circle(row, col, radius=resolution / 200,
+        shape=raster_map.shape)
+    raster_map[row_area, col_area] = border_intensity
     row_area, col_area = draw.circle(row, col, radius=resolution / 300,
         shape=raster_map.shape)
     raster_map[row_area, col_area] = val
 
 
 def scale_value(val, _min, _max):
-    "scale from any range to 0-255 in order to use the full range"
+    """scale from any range to 0-255 in order to use the full range"""
     return 255 * (val - _min) / (_max - _min)
 
 
 def draw_map(shape_records, westsoutheastnorth, resolution):
-    "draws shape records on map"
+    """draws shape records on map"""
     west, south, east, north = westsoutheastnorth
     buffer_around = int(resolution / 30)
     x_size_raster = int(abs(west - east) * resolution)
@@ -66,12 +69,12 @@ def draw_map(shape_records, westsoutheastnorth, resolution):
         lat, lon = shape_record[0]
         row, col = rowcol(transform, lat, lon)
         val = scale_value(shape_record[1], _min, _max)
-        draw_marker(raster_map, row, col, val, resolution)
+        draw_marker(raster_map, row, col, val, resolution, _max)
     return transform, raster_map
 
 
 def get_colormap():
-    "TIF files need a color map"
+    """TIF files need a color map"""
     colormap = {}
     for intensity in range(256):
         grayscale = 255 - intensity
@@ -80,7 +83,7 @@ def get_colormap():
 
 
 def save_raster_map(path, raster_map, transform):
-    "saves map in project standard crs"
+    """saves map in project standard crs"""
     with rasterio.open(path, 'w', driver='GTiff',
         height=raster_map.shape[0], width=raster_map.shape[1], count=1,
         dtype=raster_map.dtype, crs='EPSG:4326',
@@ -93,17 +96,17 @@ def save_raster_map(path, raster_map, transform):
 
 
 def show_map(raster_map):
-    "shows map for visual inspection"
+    """shows map for visual inspection"""
     plt.imshow(raster_map, cmap="hot")
     plt.show()
 
 
 def main(path_in, path_out, attribute_name, resolution):
-    "combine upper methods and run all together"
+    """combine upper methods and run all together"""
     westsoutheastnorth, shape_records = read_shapefile(path_in, attribute_name)
     transform, raster_map = draw_map(shape_records, westsoutheastnorth,
         resolution)
-    save_raster_map(path_out, raster_map, transform)
+    #save_raster_map(path_out, raster_map, transform)
     show_map(raster_map)
 
 
