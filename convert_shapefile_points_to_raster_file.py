@@ -9,6 +9,7 @@ import rasterio
 from rasterio.transform import from_origin
 from rasterio.transform import rowcol
 from skimage import draw
+from affine import Affine
 
 
 def read_shapefile(path, attribute_name):
@@ -35,12 +36,15 @@ def scale_value(val, _min, _max):
 
 def draw_map(shape_records, westsoutheastnorth, resolution):
     west, south, east, north = westsoutheastnorth
-    x_size_raster = int(abs(west - east) * resolution) + 1
-    y_size_raster = int(abs(north - south) * resolution) + 1
-    raster_map = np.zeros((y_size_raster, x_size_raster), np.uint8)
-    x_size_transform = abs(west - east) / raster_map.shape[1]
-    y_size_transform = abs(north - south) / raster_map.shape[0]
-    transform = from_origin(west, north, x_size_transform, y_size_transform)
+    buffer_around = int(resolution / 30)
+    x_size_raster = int(abs(west - east) * resolution)
+    y_size_raster = int(abs(north - south) * resolution)
+    raster_map = np.zeros((y_size_raster + buffer_around,
+        x_size_raster + buffer_around), np.uint8)
+    x_size_transform = abs(west - east) / x_size_raster
+    y_size_transform = abs(north - south) / y_size_raster
+    transform = (from_origin(west, north, x_size_transform, y_size_transform)
+        * Affine.translation(-buffer_around / 2, -buffer_around / 2))
     attributes = [s[1] for s in shape_records]
     _min = min(attributes)
     _max = max(attributes)
@@ -73,8 +77,6 @@ def save_transformed_map(path, raster_map, transform):
 
 
 def show_map(raster_map):
-    print(raster_map.max())
-    print(raster_map.min())
     plt.imshow(raster_map, cmap="hot")
     plt.show()
 
