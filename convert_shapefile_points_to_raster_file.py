@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import rasterio
 from rasterio.transform import from_origin
 from rasterio.transform import rowcol
+from skimage import draw
 
 
 def read_shapefile(path, attribute_name):
@@ -21,16 +22,10 @@ def read_shapefile(path, attribute_name):
     return westsoutheastnorth, shape_records
 
 
-def draw_marker(raster_map, row, col, val):
-    raster_map[row - 1, col - 1] = val
-    raster_map[row, col - 1] = val
-    raster_map[row + 1, col - 1] = val
-    raster_map[row - 1, col] = val
-    raster_map[row, col] = val
-    raster_map[row + 1, col] = val
-    raster_map[row - 1, col + 1] = val
-    raster_map[row, col + 1] = val
-    raster_map[row + 1, col + 1] = val
+def draw_marker(raster_map, row, col, val, resolution):
+    row_area, col_area = draw.circle(row, col, radius=resolution / 300,
+        shape=raster_map.shape)
+    raster_map[row_area, col_area] = val
 
 
 def scale_value(val, _min, _max):
@@ -42,29 +37,26 @@ def draw_map(shape_records, westsoutheastnorth, resolution):
     west, south, east, north = westsoutheastnorth
     x_size_raster = int(abs(west - east) * resolution) + 1
     y_size_raster = int(abs(north - south) * resolution) + 1
-    raster_map = np.zeros((x_size_raster, y_size_raster), np.uint8)
-    west, south, east, north = westsoutheastnorth
+    raster_map = np.zeros((y_size_raster, x_size_raster), np.uint8)
     x_size_transform = abs(west - east) / raster_map.shape[1]
     y_size_transform = abs(north - south) / raster_map.shape[0]
     transform = from_origin(west, north, x_size_transform, y_size_transform)
-    _min = min(shape_records)
-    _max = max(shape_records)
+    attributes = [s[1] for s in shape_records]
+    _min = min(attributes)
+    _max = max(attributes)
     for shape_record in shape_records:
         lat, lon = shape_record[0]
         row, col = rowcol(transform, lat, lon)
-        if col == raster_map.shape[1]:
-            col -= 2
-        if row == raster_map.shape[0]:
-            row -= 2
         val = scale_value(shape_record[1], _min, _max)
-        draw_marker(raster_map, row, col, val)
+        draw_marker(raster_map, row, col, val, resolution)
     return transform, raster_map
 
 
 def get_colormap():
     colormap = {}
-    for grayscale in range(256):
-        colormap[grayscale] = (grayscale, grayscale, grayscale)
+    for intensity in range(256):
+        grayscale = 255 - intensity
+        colormap[intensity] = (grayscale, grayscale, grayscale)
     return colormap
 
 
@@ -83,7 +75,7 @@ def save_transformed_map(path, raster_map, transform):
 def show_map(raster_map):
     print(raster_map.max())
     print(raster_map.min())
-    plt.imshow(np.transpose(raster_map), cmap="hot")
+    plt.imshow(raster_map, cmap="hot")
     plt.show()
 
 
@@ -92,7 +84,12 @@ def main(path_in, path_out, attribute_name, resolution):
     transform, raster_map = draw_map(shape_records, westsoutheastnorth,
         resolution)
     save_transformed_map(path_out, raster_map, transform)
+    show_map(raster_map)
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    path_in = sys.argv[1]
+    path_out = sys.argv[2]
+    attribute_name = sys.argv[3]
+    resolution = int(sys.argv[4])
+    main(path_in, path_out, attribute_name, resolution)
