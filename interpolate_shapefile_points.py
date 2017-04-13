@@ -52,7 +52,7 @@ def main(path_in, path_out, attribute_name, resolution):
     """combine upper methods and run all together"""
     westsoutheastnorth, shape_records = read_shapefile(path_in, attribute_name)
     transform, raster_map = draw_interpolated_map(shape_records, westsoutheastnorth, resolution)
-    #save_raster_map(path_out, raster_map, transform)
+    save_raster_map(path_out, raster_map, transform)
     show_map(raster_map)
 
 
